@@ -19,7 +19,7 @@ app =
     { init = init
     , view = view
     , update = update
-    , inputs = [] }
+    , inputs = [Game.input] }
 
 
 main =
