@@ -92,8 +92,6 @@ background center =
         |> filled Color.lightBlue
     , segment (-halfW, -(c - (height/2))) (halfW, -(c - (height/2)))
         |> traced defaultLine
-    , segment (-halfW, -center.y) (halfW, -center.y)
-        |> traced { defaultLine | color <- Color.red, width <- 50 }
     ]
 
 
@@ -106,12 +104,28 @@ positionElem { pos } =
   |> Graphics.Element.width width
 
 
+trampolineForm center player =
+  let
+    base =
+      -center.y
+
+    py =
+      min base (player.pos.y - center.y)
+  in
+    path [ (-100, base)
+         , (0, py)
+         , (100, base)
+         ]
+    |> traced defaultLine
+
+
 view : Signal.Address Action -> Model -> Html
 view address model =
   let
     elem =
       collage width height
         [ background model.center
+        , trampolineForm model.center model.player
         , playerForm model.center model.player
         ]
   in
@@ -150,7 +164,7 @@ updateWithAction act ({player} as model) =
     Jump ->
       let
         dy' =
-          if -50 < player.pos.y && player.pos.y < 0  then
+          if -50 < player.pos.y && player.pos.y < 0 && player.dy <= 0  then
             10 + -player.dy
           else
             player.dy
@@ -173,7 +187,10 @@ updatePlayer ({ pos } as player) =
       }
 
     dy' =
-      max (player.dy - 0.1) -8
+      if pos.y < -50 && player.dy < 0 then
+        abs player.dy * 0.7
+      else
+        player.dy - 0.1
   in
     { player | pos <- pos'
     , dy <- dy'
