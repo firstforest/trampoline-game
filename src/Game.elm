@@ -6,6 +6,7 @@ import Graphics.Element exposing (..)
 import Graphics.Collage exposing (..)
 import Color
 import Time
+import Keyboard
 
 import Debug
 
@@ -36,10 +37,20 @@ type alias Model =
 
 type Action
   = NoOp
+  | Jump
 
 
 input =
-  Signal.sampleOn (Time.fps 60) (Signal.constant NoOp)
+  Signal.merge
+    (Signal.map isJump Keyboard.space)
+    (Signal.sampleOn (Time.fps 60) (Signal.constant NoOp))
+
+
+isJump b =
+  if b then
+    Jump
+  else
+    NoOp
 
 
 init : (Model, Effects Action)
@@ -55,7 +66,7 @@ init =
 
 initialPlayer =
   { pos = Position 0 0
-  , dy = 8
+  , dy = 0
   }
 
 
@@ -97,6 +108,11 @@ view address model =
 
 update : Action -> Model -> (Model, Effects Action)
 update act model =
+  updateWithAction act model
+  |> succeedGame
+
+
+succeedGame model =
   let
     player' =
       updatePlayer model.player
@@ -112,11 +128,30 @@ update act model =
     (Debug.log "model" model', Effects.none)
 
 
+updateWithAction act ({player} as model) =
+  case act of
+    Jump ->
+      let
+        player' =
+          { player |
+            dy <- 10
+          }
+      in
+        { model | player <- player'
+        }
+
+    _ ->
+      model
+
 updatePlayer ({ pos } as player) =
   let
     pos' =
       { pos | y <- pos.y + player.dy
       }
+
+    dy' =
+      max (player.dy - 0.1) -20
   in
     { player | pos <- pos'
+    , dy <- dy'
     }
