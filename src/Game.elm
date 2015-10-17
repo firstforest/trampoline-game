@@ -7,6 +7,7 @@ import Graphics.Collage exposing (..)
 import Color
 import Time
 import Keyboard
+import Text
 
 import Debug
 
@@ -91,7 +92,18 @@ background center =
         |> filled Color.lightBlue
     , segment (-halfW, -(c - (height/2))) (halfW, -(c - (height/2)))
         |> traced defaultLine
+    , segment (-halfW, -center.y) (halfW, -center.y)
+        |> traced { defaultLine | color <- Color.red, width <- 50 }
     ]
+
+
+positionElem { pos } =
+  pos.y
+  |> floor
+  |> toString
+  |> Text.fromString
+  |> rightAligned
+  |> Graphics.Element.width width
 
 
 view : Signal.Address Action -> Model -> Html
@@ -103,7 +115,12 @@ view address model =
         , playerForm model.center model.player
         ]
   in
-    Html.fromElement elem
+    Html.fromElement
+    <|  layers
+          [ elem
+          , positionElem model.player
+          ]
+
 
 
 update : Action -> Model -> (Model, Effects Action)
@@ -132,9 +149,15 @@ updateWithAction act ({player} as model) =
   case act of
     Jump ->
       let
+        dy' =
+          if -50 < player.pos.y && player.pos.y < 0  then
+            10 + -player.dy
+          else
+            player.dy
+
         player' =
           { player |
-            dy <- 10
+            dy <- dy'
           }
       in
         { model | player <- player'
@@ -150,7 +173,7 @@ updatePlayer ({ pos } as player) =
       }
 
     dy' =
-      max (player.dy - 0.1) -20
+      max (player.dy - 0.1) -8
   in
     { player | pos <- pos'
     , dy <- dy'
