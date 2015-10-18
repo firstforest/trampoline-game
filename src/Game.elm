@@ -6,6 +6,8 @@ import Graphics.Element exposing (..)
 import Graphics.Collage exposing (..)
 import Color
 import Time
+import Keyboard
+import Text
 
 import Debug
 
@@ -36,10 +38,20 @@ type alias Model =
 
 type Action
   = NoOp
+  | Jump
 
 
 input =
-  Signal.sampleOn (Time.fps 60) (Signal.constant NoOp)
+  Signal.merge
+    (Signal.map isJump Keyboard.space)
+    (Signal.sampleOn (Time.fps 60) (Signal.constant NoOp))
+
+
+isJump b =
+  if b then
+    Jump
+  else
+    NoOp
 
 
 init : (Model, Effects Action)
@@ -55,7 +67,7 @@ init =
 
 initialPlayer =
   { pos = Position 0 0
-  , dy = 8
+  , dy = 0
   }
 
 
@@ -83,20 +95,55 @@ background center =
     ]
 
 
+positionElem { pos } =
+  pos.y
+  |> floor
+  |> toString
+  |> Text.fromString
+  |> rightAligned
+  |> Graphics.Element.width width
+
+
+trampolineForm center player =
+  let
+    base =
+      -center.y
+
+    py =
+      min base (player.pos.y - center.y)
+  in
+    path [ (-100, base)
+         , (0, py)
+         , (100, base)
+         ]
+    |> traced defaultLine
+
+
 view : Signal.Address Action -> Model -> Html
 view address model =
   let
     elem =
       collage width height
         [ background model.center
+        , trampolineForm model.center model.player
         , playerForm model.center model.player
         ]
   in
-    Html.fromElement elem
+    Html.fromElement
+    <|  layers
+          [ elem
+          , positionElem model.player
+          ]
+
 
 
 update : Action -> Model -> (Model, Effects Action)
 update act model =
+  updateWithAction act model
+  |> succeedGame
+
+
+succeedGame model =
   let
     player' =
       updatePlayer model.player
@@ -112,11 +159,39 @@ update act model =
     (Debug.log "model" model', Effects.none)
 
 
+updateWithAction act ({player} as model) =
+  case act of
+    Jump ->
+      let
+        dy' =
+          if -50 < player.pos.y && player.pos.y < 0 && player.dy <= 0  then
+            10 + -player.dy
+          else
+            player.dy
+
+        player' =
+          { player |
+            dy <- dy'
+          }
+      in
+        { model | player <- player'
+        }
+
+    _ ->
+      model
+
 updatePlayer ({ pos } as player) =
   let
     pos' =
       { pos | y <- pos.y + player.dy
       }
+
+    dy' =
+      if pos.y < -50 && player.dy < 0 then
+        abs player.dy * 0.7
+      else
+        player.dy - 0.1
   in
     { player | pos <- pos'
+    , dy <- dy'
     }
